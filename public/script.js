@@ -1,10 +1,24 @@
 let currentSongIndex = 0;
 let songs = [];
+let songFiles = new Map(); // Store File objects
 const audio = new Audio();
 let isPlaying = false;
 let isRepeat = false;
 let isShuffle = false;
 let playOrder = [];
+
+// Load saved playlist from localStorage
+const savedPlaylist = localStorage.getItem('musicPlaylist');
+if (savedPlaylist) {
+    try {
+        const playlistData = JSON.parse(savedPlaylist);
+        playOrder = playlistData.playOrder || [];
+        isRepeat = playlistData.isRepeat || false;
+        isShuffle = playlistData.isShuffle || false;
+    } catch (e) {
+        console.error('Error loading saved playlist:', e);
+    }
+}
 
 // DOM Elements
 const playBtn = document.getElementById('playBtn');
@@ -24,6 +38,8 @@ const lyricsEditor = document.getElementById('lyricsEditor');
 const lyricsText = document.getElementById('lyricsText');
 const saveLyricsBtn = document.getElementById('saveLyricsBtn');
 const cancelLyricsBtn = document.getElementById('cancelLyricsBtn');
+const musicFiles = document.getElementById('musicFiles');
+const addMusicBtn = document.getElementById('addMusicBtn');
 
 // Event Listeners
 playBtn.addEventListener('click', togglePlay);
@@ -38,21 +54,36 @@ repeatBtn.addEventListener('click', toggleRepeat);
 editLyricsBtn.addEventListener('click', toggleLyricsEditor);
 saveLyricsBtn.addEventListener('click', saveLyrics);
 cancelLyricsBtn.addEventListener('click', cancelLyricsEdit);
+addMusicBtn.addEventListener('click', () => musicFiles.click());
+musicFiles.addEventListener('change', handleFileSelect);
 
-// Initialize volume
-audio.volume = volumeSlider.value / 100;
+// Initialize volume from localStorage
+const savedVolume = localStorage.getItem('volume');
+if (savedVolume !== null) {
+    audio.volume = parseFloat(savedVolume);
+    volumeSlider.value = parseFloat(savedVolume) * 100;
+}
 
 // Functions
-function loadSongs() {
-    fetch('/songs')
-        .then(response => response.json())
-        .then(data => {
-            songs = data;
-            playOrder = [...Array(songs.length).keys()];
-            displaySongs();
-            if (isShuffle) shufflePlayOrder();
-        })
-        .catch(error => console.error('Error loading songs:', error));
+function handleFileSelect(event) {
+    const files = Array.from(event.target.files);
+    
+    files.forEach(file => {
+        if (file.type.startsWith('audio/')) {
+            const songName = file.name;
+            songs.push(songName);
+            songFiles.set(songName, file);
+        }
+    });
+
+    if (songs.length > 0) {
+        playOrder = [...Array(songs.length).keys()];
+        if (isShuffle) shufflePlayOrder();
+        savePlaylistToStorage();
+        displaySongs();
+    }
+
+    event.target.value = ''; // Reset file input
 }
 
 function displaySongs() {
@@ -75,6 +106,15 @@ function displaySongs() {
         }
         songList.appendChild(li);
     });
+}
+
+function savePlaylistToStorage() {
+    const playlistData = {
+        playOrder,
+        isRepeat,
+        isShuffle
+    };
+    localStorage.setItem('musicPlaylist', JSON.stringify(playlistData));
 }
 
 function handleDragStart(e) {
@@ -119,6 +159,7 @@ function handleDrop(e) {
             currentSongIndex++;
         }
         
+        savePlaylistToStorage();
         displaySongs();
     }
 }
@@ -131,11 +172,13 @@ function toggleShuffle() {
     } else {
         playOrder = [...Array(songs.length).keys()];
     }
+    savePlaylistToStorage();
 }
 
 function toggleRepeat() {
     isRepeat = !isRepeat;
     repeatBtn.classList.toggle('active');
+    savePlaylistToStorage();
 }
 
 function shufflePlayOrder() {
@@ -157,13 +200,22 @@ function handleSongEnd() {
 function playSong(index) {
     if (index >= 0 && index < songs.length) {
         currentSongIndex = index;
-        audio.src = `/uploads/${songs[index]}`;
-        audio.play();
-        isPlaying = true;
-        updatePlayButton();
-        currentSongElement.textContent = songs[index];
-        loadLyrics(songs[index]);
-        displaySongs();
+        const songFile = songFiles.get(songs[index]);
+        if (songFile) {
+            const url = URL.createObjectURL(songFile);
+            audio.src = url;
+            audio.play().catch(error => console.error('Error playing audio:', error));
+            isPlaying = true;
+            updatePlayButton();
+            currentSongElement.textContent = songs[index];
+            loadLyrics(songs[index]);
+            displaySongs();
+            
+            // Clean up old URL when audio is loaded
+            audio.onloadeddata = () => {
+                URL.revokeObjectURL(url);
+            };
+        }
     }
 }
 
@@ -200,7 +252,9 @@ function playNext() {
 }
 
 function updateVolume() {
-    audio.volume = volumeSlider.value / 100;
+    const volume = volumeSlider.value / 100;
+    audio.volume = volume;
+    localStorage.setItem('volume', volume.toString());
 }
 
 function updateProgress() {
@@ -243,21 +297,10 @@ function toggleLyricsEditor() {
 
 function saveLyrics() {
     const lyrics = lyricsText.value;
-    const songName = songs[currentSongIndex].replace(/\.[^/.]+$/, ''); // Remove file extension
-    
-    fetch(`/lyrics/${encodeURIComponent(songName)}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ lyrics })
-    })
-    .then(response => response.json())
-    .then(() => {
-        lyricsDisplay.textContent = lyrics;
-        toggleLyricsEditor();
-    })
-    .catch(error => console.error('Error saving lyrics:', error));
+    const songName = songs[currentSongIndex];
+    localStorage.setItem(`lyrics_${songName}`, lyrics);
+    lyricsDisplay.textContent = lyrics;
+    toggleLyricsEditor();
 }
 
 function cancelLyricsEdit() {
@@ -265,15 +308,11 @@ function cancelLyricsEdit() {
 }
 
 function loadLyrics(songName) {
-    songName = songName.replace(/\.[^/.]+$/, ''); // Remove file extension
-    fetch(`/lyrics/${encodeURIComponent(songName)}`)
-        .then(response => response.json())
-        .then(data => {
-            lyricsDisplay.textContent = data.lyrics || 'No lyrics available';
-            lyricsText.value = data.lyrics || '';
-        })
-        .catch(error => console.error('Error loading lyrics:', error));
+    const lyrics = localStorage.getItem(`lyrics_${songName}`);
+    lyricsDisplay.textContent = lyrics || 'No lyrics available';
+    lyricsText.value = lyrics || '';
 }
 
-// Initial load of songs
-loadSongs();
+// Initialize UI state
+if (isRepeat) repeatBtn.classList.add('active');
+if (isShuffle) shuffleBtn.classList.add('active');
