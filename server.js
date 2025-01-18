@@ -6,84 +6,95 @@ const fs = require('fs');
 const app = express();
 const port = 3000;
 
-// Middleware
+// Set up multer for handling file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'public/uploads/')
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname)
+    }
+});
+
+const upload = multer({ storage: storage });
+
+// Serve static files from the public directory
 app.use(express.static('public'));
 app.use(express.json());
 
-// Configure multer for handling music file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const dir = './public/uploads';
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        cb(null, dir);
-    },
-    filename: function (req, file, cb) {
-        cb(null, file.originalname);
-    }
-});
-
-const upload = multer({ 
-    storage: storage,
-    fileFilter: (req, file, cb) => {
-        const filetypes = /mp3|wav|ogg/;
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-        if (extname) {
-            return cb(null, true);
-        }
-        cb('Error: Audio files only!');
-    }
-});
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Create lyrics directory if it doesn't exist
-const lyricsDir = './public/lyrics';
+const lyricsDir = path.join(__dirname, 'public', 'lyrics');
 if (!fs.existsSync(lyricsDir)) {
     fs.mkdirSync(lyricsDir, { recursive: true });
 }
 
-// Routes
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.post('/upload', upload.single('music'), (req, res) => {
-    res.json({ message: 'File uploaded successfully' });
-});
-
+// Get list of songs
 app.get('/songs', (req, res) => {
-    const directoryPath = path.join(__dirname, 'public/uploads');
-    fs.readdir(directoryPath, (err, files) => {
+    fs.readdir(path.join(__dirname, 'public', 'uploads'), (err, files) => {
         if (err) {
-            return res.status(500).send({ error: 'Unable to scan directory' });
+            res.status(500).json({ error: 'Error reading songs directory' });
+            return;
         }
-        const songs = files.filter(file => /\.(mp3|wav|ogg)$/.test(file));
-        res.json(songs);
+        res.json(files);
     });
 });
 
+// Handle file upload
+app.post('/upload', upload.single('music'), (req, res) => {
+    if (!req.file) {
+        res.status(400).json({ error: 'No file uploaded' });
+        return;
+    }
+    res.json({ message: 'File uploaded successfully' });
+});
+
+// Get lyrics for a song
 app.get('/lyrics/:songName', (req, res) => {
-    const songName = req.params.songName;
-    const lyricsPath = path.join(__dirname, 'public/lyrics', songName + '.txt');
-    
+    const lyricsPath = path.join(__dirname, 'public', 'lyrics', `${req.params.songName}.txt`);
     fs.readFile(lyricsPath, 'utf8', (err, data) => {
         if (err) {
-            return res.json({ lyrics: '' });
+            res.json({ lyrics: '' });
+            return;
         }
         res.json({ lyrics: data });
     });
 });
 
+// Save lyrics for a song
 app.post('/lyrics/:songName', (req, res) => {
-    const songName = req.params.songName;
-    const lyrics = req.body.lyrics;
-    const lyricsPath = path.join(__dirname, 'public/lyrics', songName + '.txt');
-    
-    fs.writeFile(lyricsPath, lyrics, 'utf8', (err) => {
+    const lyricsPath = path.join(__dirname, 'public', 'lyrics', `${req.params.songName}.txt`);
+    fs.writeFile(lyricsPath, req.body.lyrics, (err) => {
         if (err) {
-            return res.status(500).json({ error: 'Failed to save lyrics' });
+            res.status(500).json({ error: 'Error saving lyrics' });
+            return;
         }
         res.json({ message: 'Lyrics saved successfully' });
+    });
+});
+
+// Delete a song
+app.delete('/songs/:songName', (req, res) => {
+    const songPath = path.join(__dirname, 'public', 'uploads', req.params.songName);
+    const lyricsPath = path.join(__dirname, 'public', 'lyrics', `${req.params.songName}.txt`);
+    
+    // Delete song file
+    fs.unlink(songPath, (err) => {
+        if (err && err.code !== 'ENOENT') {
+            res.status(500).json({ error: 'Error deleting song' });
+            return;
+        }
+        
+        // Delete lyrics file if it exists
+        fs.unlink(lyricsPath, (err) => {
+            // Ignore error if lyrics file doesn't exist
+            res.json({ message: 'Song deleted successfully' });
+        });
     });
 });
 
