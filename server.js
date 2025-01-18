@@ -6,8 +6,9 @@ const fs = require('fs');
 const app = express();
 const port = 3000;
 
-// Serve static files from public directory
+// Middleware
 app.use(express.static('public'));
+app.use(express.json());
 
 // Configure multer for handling music file uploads
 const storage = multer.diskStorage({
@@ -35,6 +36,12 @@ const upload = multer({
     }
 });
 
+// Create lyrics directory if it doesn't exist
+const lyricsDir = './public/lyrics';
+if (!fs.existsSync(lyricsDir)) {
+    fs.mkdirSync(lyricsDir, { recursive: true });
+}
+
 // Routes
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -52,6 +59,31 @@ app.get('/songs', (req, res) => {
         }
         const songs = files.filter(file => /\.(mp3|wav|ogg)$/.test(file));
         res.json(songs);
+    });
+});
+
+app.get('/lyrics/:songName', (req, res) => {
+    const songName = req.params.songName;
+    const lyricsPath = path.join(__dirname, 'public/lyrics', songName + '.txt');
+    
+    fs.readFile(lyricsPath, 'utf8', (err, data) => {
+        if (err) {
+            return res.json({ lyrics: '' });
+        }
+        res.json({ lyrics: data });
+    });
+});
+
+app.post('/lyrics/:songName', (req, res) => {
+    const songName = req.params.songName;
+    const lyrics = req.body.lyrics;
+    const lyricsPath = path.join(__dirname, 'public/lyrics', songName + '.txt');
+    
+    fs.writeFile(lyricsPath, lyrics, 'utf8', (err) => {
+        if (err) {
+            return res.status(500).json({ error: 'Failed to save lyrics' });
+        }
+        res.json({ message: 'Lyrics saved successfully' });
     });
 });
 

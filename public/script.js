@@ -18,6 +18,12 @@ const currentTimeElement = document.getElementById('currentTime');
 const durationElement = document.getElementById('duration');
 const shuffleBtn = document.getElementById('shuffleBtn');
 const repeatBtn = document.getElementById('repeatBtn');
+const editLyricsBtn = document.getElementById('editLyricsBtn');
+const lyricsDisplay = document.getElementById('lyricsDisplay');
+const lyricsEditor = document.getElementById('lyricsEditor');
+const lyricsText = document.getElementById('lyricsText');
+const saveLyricsBtn = document.getElementById('saveLyricsBtn');
+const cancelLyricsBtn = document.getElementById('cancelLyricsBtn');
 
 // Event Listeners
 playBtn.addEventListener('click', togglePlay);
@@ -29,6 +35,9 @@ audio.addEventListener('ended', handleSongEnd);
 document.querySelector('.progress-bar').addEventListener('click', setProgress);
 shuffleBtn.addEventListener('click', toggleShuffle);
 repeatBtn.addEventListener('click', toggleRepeat);
+editLyricsBtn.addEventListener('click', toggleLyricsEditor);
+saveLyricsBtn.addEventListener('click', saveLyrics);
+cancelLyricsBtn.addEventListener('click', cancelLyricsEdit);
 
 // Initialize volume
 audio.volume = volumeSlider.value / 100;
@@ -153,6 +162,7 @@ function playSong(index) {
         isPlaying = true;
         updatePlayButton();
         currentSongElement.textContent = songs[index];
+        loadLyrics(songs[index]);
         displaySongs();
     }
 }
@@ -216,6 +226,53 @@ function formatTime(seconds) {
     const minutes = Math.floor(seconds / 60);
     seconds = Math.floor(seconds % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function toggleLyricsEditor() {
+    const isEditing = !lyricsEditor.classList.contains('hidden');
+    if (isEditing) {
+        lyricsEditor.classList.add('hidden');
+        lyricsDisplay.classList.remove('hidden');
+    } else {
+        lyricsText.value = lyricsDisplay.textContent;
+        lyricsEditor.classList.remove('hidden');
+        lyricsDisplay.classList.add('hidden');
+        lyricsText.focus();
+    }
+}
+
+function saveLyrics() {
+    const lyrics = lyricsText.value;
+    const songName = songs[currentSongIndex].replace(/\.[^/.]+$/, ''); // Remove file extension
+    
+    fetch(`/lyrics/${encodeURIComponent(songName)}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ lyrics })
+    })
+    .then(response => response.json())
+    .then(() => {
+        lyricsDisplay.textContent = lyrics;
+        toggleLyricsEditor();
+    })
+    .catch(error => console.error('Error saving lyrics:', error));
+}
+
+function cancelLyricsEdit() {
+    toggleLyricsEditor();
+}
+
+function loadLyrics(songName) {
+    songName = songName.replace(/\.[^/.]+$/, ''); // Remove file extension
+    fetch(`/lyrics/${encodeURIComponent(songName)}`)
+        .then(response => response.json())
+        .then(data => {
+            lyricsDisplay.textContent = data.lyrics || 'No lyrics available';
+            lyricsText.value = data.lyrics || '';
+        })
+        .catch(error => console.error('Error loading lyrics:', error));
 }
 
 // Initial load of songs
