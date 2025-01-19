@@ -2,141 +2,115 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const musicServices = require('./utils/musicServices');
+const SpotifyDL = require('spotifydl-core').default;
+require('dotenv').config();
 
 const app = express();
 const port = 3000;
 
-// Set up multer for handling file uploads
+// Configure multer for file uploads
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
+    destination: (req, file, cb) => {
         const uploadDir = path.join(__dirname, 'public', 'uploads');
-        // Create directory if it doesn't exist
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
         }
         cb(null, uploadDir);
     },
-    filename: function (req, file, cb) {
-        // Keep original filename but remove any potentially harmful characters
-        const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-        cb(null, safeName);
+    filename: (req, file, cb) => {
+        cb(null, file.originalname);
     }
 });
 
-const upload = multer({ 
-    storage: storage,
-    fileFilter: (req, file, cb) => {
-        // Accept only audio files
-        if (file.mimetype.startsWith('audio/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only audio files are allowed'));
-        }
-    }
-});
+const upload = multer({ storage: storage });
 
-// Serve static files from the public directory
-app.use(express.static('public'));
+// Middleware
 app.use(express.json());
+app.use(express.static('public'));
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Create Spotify client
+const credentials = {
+    clientId: process.env.SPOTIFY_CLIENT_ID,
+    clientSecret: process.env.SPOTIFY_CLIENT_SECRET
+};
 
-// Create lyrics directory if it doesn't exist
-const lyricsDir = path.join(__dirname, 'public', 'lyrics');
-if (!fs.existsSync(lyricsDir)) {
-    fs.mkdirSync(lyricsDir, { recursive: true });
-}
+const spotify = new SpotifyDL(credentials);
 
-// Get list of songs
+// Routes
 app.get('/songs', (req, res) => {
-    fs.readdir(path.join(__dirname, 'public', 'uploads'), (err, files) => {
-        if (err) {
-            res.status(500).json({ error: 'Error reading songs directory' });
-            return;
-        }
-        res.json(files);
-    });
-});
-
-// Handle file upload
-app.post('/upload', upload.array('music'), (req, res) => {
-    if (!req.files || req.files.length === 0) {
-        res.status(400).json({ error: 'No files uploaded' });
-        return;
+    const uploadDir = path.join(__dirname, 'public', 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
     }
-    res.json({ 
-        message: 'Files uploaded successfully',
-        files: req.files.map(f => f.filename)
+    fs.readdir(uploadDir, (err, files) => {
+        if (err) {
+            console.error('Error reading uploads directory:', err);
+            return res.status(500).json({ error: 'Failed to read songs' });
+        }
+        res.json(files.filter(file => file.match(/\.(mp3|wav|ogg)$/i)));
     });
 });
 
-// Get lyrics for a song
+app.post('/upload', upload.array('music'), (req, res) => {
+    res.json({ message: 'Files uploaded successfully' });
+});
+
+// Spotify download endpoint
+app.post('/spotify/download', async (req, res) => {
+    try {
+        const { url } = req.body;
+        if (!url) {
+            return res.status(400).json({ success: false, error: 'URL is required' });
+        }
+
+        const uploadDir = path.join(__dirname, 'public', 'uploads');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        // Download the track
+        const track = await spotify.downloadTrack(url);
+        
+        res.json({ success: true, message: 'Download complete' });
+    } catch (error) {
+        console.error('Spotify download error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Lyrics endpoints
 app.get('/lyrics/:songName', (req, res) => {
-    const lyricsPath = path.join(__dirname, 'public', 'lyrics', `${req.params.songName}.txt`);
+    const songName = req.params.songName;
+    const lyricsPath = path.join(__dirname, 'public', 'Lyrics', songName + '.txt');
+    
     fs.readFile(lyricsPath, 'utf8', (err, data) => {
         if (err) {
-            res.json({ lyrics: '' });
-            return;
+            if (err.code === 'ENOENT') {
+                return res.json({ lyrics: '' });
+            }
+            return res.status(500).json({ error: 'Failed to read lyrics' });
         }
         res.json({ lyrics: data });
     });
 });
 
-// Save lyrics for a song
 app.post('/lyrics/:songName', (req, res) => {
-    const lyricsPath = path.join(__dirname, 'public', 'lyrics', `${req.params.songName}.txt`);
-    fs.writeFile(lyricsPath, req.body.lyrics, (err) => {
-        if (err) {
-            res.status(500).json({ error: 'Error saving lyrics' });
-            return;
-        }
-        res.json({ message: 'Lyrics saved successfully' });
-    });
-});
-
-// Delete a song
-app.delete('/songs/:songName', (req, res) => {
-    const songPath = path.join(__dirname, 'public', 'uploads', req.params.songName);
-    const lyricsPath = path.join(__dirname, 'public', 'lyrics', `${req.params.songName}.txt`);
+    const songName = req.params.songName;
+    const lyrics = req.body.lyrics;
+    const lyricsDir = path.join(__dirname, 'public', 'Lyrics');
+    const lyricsPath = path.join(lyricsDir, songName + '.txt');
     
-    // Delete song file
-    fs.unlink(songPath, (err) => {
-        if (err && err.code !== 'ENOENT') {
-            res.status(500).json({ error: 'Error deleting song' });
-            return;
+    if (!fs.existsSync(lyricsDir)) {
+        fs.mkdirSync(lyricsDir, { recursive: true });
+    }
+    
+    fs.writeFile(lyricsPath, lyrics, 'utf8', (err) => {
+        if (err) {
+            console.error('Error saving lyrics:', err);
+            return res.status(500).json({ error: 'Failed to save lyrics' });
         }
-        
-        // Delete lyrics file if it exists
-        fs.unlink(lyricsPath, (err) => {
-            // Ignore error if lyrics file doesn't exist
-            res.json({ message: 'Song deleted successfully' });
-        });
+        res.json({ success: true });
     });
-});
-
-// Download from Spotify
-app.post('/download-spotify', async (req, res) => {
-    const { url } = req.body;
-    if (!url) {
-        res.status(400).json({ error: 'No Spotify URL provided' });
-        return;
-    }
-
-    try {
-        const result = await musicServices.downloadFromSpotify(url);
-        if (result.success) {
-            res.json({ message: 'Song downloaded successfully', filename: result.filename });
-        } else {
-            res.status(500).json({ error: result.error });
-        }
-    } catch (error) {
-        res.status(500).json({ error: 'Error downloading from Spotify' });
-    }
 });
 
 app.listen(port, () => {
