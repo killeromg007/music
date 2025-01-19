@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const musicServices = require('./utils/musicServices');
 
 const app = express();
 const port = 3000;
@@ -9,14 +10,31 @@ const port = 3000;
 // Set up multer for handling file uploads
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'public/uploads/')
+        const uploadDir = path.join(__dirname, 'public', 'uploads');
+        // Create directory if it doesn't exist
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
-        cb(null, file.originalname)
+        // Keep original filename but remove any potentially harmful characters
+        const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+        cb(null, safeName);
     }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ 
+    storage: storage,
+    fileFilter: (req, file, cb) => {
+        // Accept only audio files
+        if (file.mimetype.startsWith('audio/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only audio files are allowed'));
+        }
+    }
+});
 
 // Serve static files from the public directory
 app.use(express.static('public'));
@@ -46,12 +64,15 @@ app.get('/songs', (req, res) => {
 });
 
 // Handle file upload
-app.post('/upload', upload.single('music'), (req, res) => {
-    if (!req.file) {
-        res.status(400).json({ error: 'No file uploaded' });
+app.post('/upload', upload.array('music'), (req, res) => {
+    if (!req.files || req.files.length === 0) {
+        res.status(400).json({ error: 'No files uploaded' });
         return;
     }
-    res.json({ message: 'File uploaded successfully' });
+    res.json({ 
+        message: 'Files uploaded successfully',
+        files: req.files.map(f => f.filename)
+    });
 });
 
 // Get lyrics for a song
@@ -96,6 +117,26 @@ app.delete('/songs/:songName', (req, res) => {
             res.json({ message: 'Song deleted successfully' });
         });
     });
+});
+
+// Download from Spotify
+app.post('/download-spotify', async (req, res) => {
+    const { url } = req.body;
+    if (!url) {
+        res.status(400).json({ error: 'No Spotify URL provided' });
+        return;
+    }
+
+    try {
+        const result = await musicServices.downloadFromSpotify(url);
+        if (result.success) {
+            res.json({ message: 'Song downloaded successfully', filename: result.filename });
+        } else {
+            res.status(500).json({ error: result.error });
+        }
+    } catch (error) {
+        res.status(500).json({ error: 'Error downloading from Spotify' });
+    }
 });
 
 app.listen(port, () => {

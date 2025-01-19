@@ -84,6 +84,45 @@ body {
     transform: scale(1.1);
 }
 
+.playlist-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 5px;
+    background: rgba(255, 255, 255, 0.8);
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.playlist-item .song-title {
+    flex-grow: 1;
+    margin-right: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.playlist-item:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateX(5px);
+}
+
+.playlist-item.active {
+    background: #2a5298;
+    color: white;
+}
+
+.playlist-item.dragging {
+    opacity: 0.5;
+    background: #f0f0f0;
+}
+
+.playlist-item.drag-over {
+    border-top: 2px solid #2a5298;
+}
+
 .player-main {
     flex-grow: 1;
     padding: clamp(10px, 1.5vw, 20px);
@@ -126,8 +165,8 @@ h1 {
 }
 
 .progress {
-    width: 0%;
     height: 100%;
+    width: 0%;
     background: #2a5298;
     border-radius: 8px;
     transition: width 0.1s linear;
@@ -336,6 +375,76 @@ h1 {
 #songList li.active {
     background: #2a5298;
     color: white;
+}
+
+.spotify-download {
+    margin: 10px 0;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
+
+.spotify-download form {
+    display: flex;
+    gap: 10px;
+}
+
+.spotify-download input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.spotify-download button {
+    background: #1DB954;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.spotify-download button:hover {
+    background: #1ed760;
+}
+
+#download-status {
+    margin-top: 5px;
+    font-size: 0.9em;
+    color: #666;
+}
+
+#download-status.error {
+    color: #dc3545;
+}
+
+#download-status.success {
+    color: #28a745;
+}
+
+.status {
+    margin-top: 10px;
+    padding: 8px;
+    border-radius: 4px;
+    display: none;
+}
+
+.status.success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status.error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status.info {
+    background-color: #cce5ff;
+    color: #004085;
 }
 
 /* Scrollbar styling */

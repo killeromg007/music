@@ -25,6 +25,11 @@ const lyricsEditor = document.getElementById('lyricsEditor');
 const lyricsText = document.getElementById('lyricsText');
 const saveLyricsBtn = document.getElementById('saveLyricsBtn');
 const cancelLyricsBtn = document.getElementById('cancelLyricsBtn');
+const addMusicBtn = document.getElementById('addMusicBtn');
+const musicFiles = document.getElementById('musicFiles');
+const spotifyForm = document.getElementById('spotify-download-form');
+const spotifyUrlInput = document.getElementById('spotify-url');
+const downloadStatus = document.getElementById('download-status');
 
 // Event Listeners
 playBtn.addEventListener('click', togglePlay);
@@ -39,50 +44,77 @@ repeatBtn.addEventListener('click', toggleRepeat);
 editLyricsBtn.addEventListener('click', toggleLyricsEditor);
 saveLyricsBtn.addEventListener('click', saveLyrics);
 cancelLyricsBtn.addEventListener('click', cancelLyricsEdit);
+addMusicBtn.addEventListener('click', () => {
+    musicFiles.click();
+});
+musicFiles.addEventListener('change', async (e) => {
+    const files = e.target.files;
+    if (!files.length) return;
+
+    const formData = new FormData();
+    for (let file of files) {
+        formData.append('music', file);
+    }
+
+    try {
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            loadSongs();
+        } else {
+            console.error('Error uploading files');
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+    }
+});
+spotifyForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const url = spotifyUrlInput.value.trim();
+    
+    if (!url) return;
+
+    downloadStatus.textContent = 'Downloading...';
+    downloadStatus.className = '';
+
+    try {
+        const response = await fetch('/spotify/download', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url })
+        });
+
+        if (!response.ok) {
+            throw new Error('Download failed');
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+            downloadStatus.textContent = 'Download complete!';
+            downloadStatus.className = 'success';
+            spotifyUrlInput.value = '';
+            loadSongs(); // Refresh the song list
+        } else {
+            throw new Error(result.error || 'Download failed');
+        }
+    } catch (error) {
+        console.error('Spotify download error:', error);
+        downloadStatus.textContent = 'Failed to download. Please try again.';
+        downloadStatus.className = 'error';
+    }
+});
 
 // Initialize volume
 audio.volume = volumeSlider.value / 100;
 
-// Enable background audio
-if ('mediaSession' in navigator) {
-    navigator.mediaSession.setActionHandler('play', function() {
-        audio.play();
-        updatePlayButton();
-    });
-    navigator.mediaSession.setActionHandler('pause', function() {
-        audio.pause();
-        updatePlayButton();
-    });
-    navigator.mediaSession.setActionHandler('previoustrack', function() {
-        playPrevious();
-    });
-    navigator.mediaSession.setActionHandler('nexttrack', function() {
-        playNext();
-    });
-}
-
-// Update media session metadata when song changes
-function updateMediaMetadata(songTitle) {
-    if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: songTitle,
-            artist: 'Music Player',
-            artwork: [
-                { src: '/icon-96x96.png', sizes: '96x96', type: 'image/png' },
-                { src: '/icon-128x128.png', sizes: '128x128', type: 'image/png' },
-                { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-                { src: '/icon-512x512.png', sizes: '512x512', type: 'image/png' },
-            ]
-        });
-    }
-}
-
-// Add event listener for visibility change
-document.addEventListener('visibilitychange', function() {
-    if (!document.hidden && audio.paused) {
-        updatePlayButton();
-    }
-});
+// Load songs on page load
+loadSongs();
 
 // Functions
 function loadSongs() {
@@ -101,20 +133,21 @@ function displaySongs() {
     songList.innerHTML = '';
     songs.forEach((song, index) => {
         const li = document.createElement('li');
-        li.textContent = song;
+        li.className = 'playlist-item' + (index === currentSongIndex ? ' active' : '');
         li.setAttribute('data-index', index);
         li.draggable = true;
         
-        // Drag and drop events
+        li.innerHTML = `
+            <span class="song-title">${song}</span>
+        `;
+        
+        // Add drag and drop event listeners
         li.addEventListener('dragstart', handleDragStart);
         li.addEventListener('dragend', handleDragEnd);
         li.addEventListener('dragover', handleDragOver);
         li.addEventListener('drop', handleDrop);
         li.addEventListener('click', () => playSong(index));
         
-        if (index === currentSongIndex) {
-            li.classList.add('active');
-        }
         songList.appendChild(li);
     });
 }
@@ -126,7 +159,7 @@ function handleDragStart(e) {
 
 function handleDragEnd() {
     this.classList.remove('dragging');
-    document.querySelectorAll('#songList li').forEach(item => {
+    document.querySelectorAll('.playlist-item').forEach(item => {
         item.classList.remove('drag-over');
     });
 }
@@ -148,10 +181,6 @@ function handleDrop(e) {
         const [movedSong] = songs.splice(fromIndex, 1);
         songs.splice(toIndex, 0, movedSong);
         
-        // Update playOrder
-        const [movedIndex] = playOrder.splice(fromIndex, 1);
-        playOrder.splice(toIndex, 0, movedIndex);
-        
         // Update currentSongIndex if needed
         if (currentSongIndex === fromIndex) {
             currentSongIndex = toIndex;
@@ -168,10 +197,9 @@ function handleDrop(e) {
 function toggleShuffle() {
     isShuffle = !isShuffle;
     shuffleBtn.classList.toggle('active');
+    playOrder = [...Array(songs.length).keys()];
     if (isShuffle) {
         shufflePlayOrder();
-    } else {
-        playOrder = [...Array(songs.length).keys()];
     }
 }
 
@@ -191,23 +219,22 @@ function handleSongEnd() {
     if (isRepeat) {
         audio.currentTime = 0;
         audio.play();
+        isPlaying = true;
     } else {
         playNext();
     }
 }
 
 function playSong(index) {
-    if (index >= 0 && index < songs.length) {
-        currentSongIndex = index;
-        audio.src = `/uploads/${songs[index]}`;
-        audio.play();
-        isPlaying = true;
-        updatePlayButton();
-        currentSongElement.textContent = songs[index];
-        loadLyrics(songs[index]);
-        displaySongs();
-        updateMediaMetadata(songs[index].replace(/\.[^/.]+$/, ''));
-    }
+    currentSongIndex = index;
+    const song = songs[index];
+    audio.src = `/uploads/${song}`;
+    audio.play();
+    isPlaying = true;
+    updatePlayButton();
+    currentSongElement.textContent = song;
+    loadLyrics(song);
+    displaySongs();
 }
 
 function togglePlay() {
@@ -215,31 +242,30 @@ function togglePlay() {
     
     if (audio.src === '') {
         playSong(0);
+    } else if (isPlaying) {
+        audio.pause();
+        isPlaying = false;
     } else {
-        if (isPlaying) {
-            audio.pause();
-        } else {
-            audio.play();
-        }
-        isPlaying = !isPlaying;
-        updatePlayButton();
+        audio.play();
+        isPlaying = true;
     }
+    updatePlayButton();
 }
 
 function updatePlayButton() {
-    playBtn.innerHTML = isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+    playBtn.innerHTML = `<i class="fas fa-${isPlaying ? 'pause' : 'play'}"></i>`;
 }
 
 function playPrevious() {
-    const currentOrderIndex = playOrder.indexOf(currentSongIndex);
-    const prevOrderIndex = (currentOrderIndex - 1 + playOrder.length) % playOrder.length;
-    playSong(playOrder[prevOrderIndex]);
+    if (songs.length === 0) return;
+    currentSongIndex = (currentSongIndex - 1 + songs.length) % songs.length;
+    playSong(currentSongIndex);
 }
 
 function playNext() {
-    const currentOrderIndex = playOrder.indexOf(currentSongIndex);
-    const nextOrderIndex = (currentOrderIndex + 1) % playOrder.length;
-    playSong(playOrder[nextOrderIndex]);
+    if (songs.length === 0) return;
+    currentSongIndex = (currentSongIndex + 1) % songs.length;
+    playSong(currentSongIndex);
 }
 
 function updateVolume() {
@@ -265,71 +291,92 @@ function setProgress(e) {
 
 function formatTime(seconds) {
     if (isNaN(seconds)) return '0:00';
-    
     const minutes = Math.floor(seconds / 60);
-    seconds = Math.floor(seconds % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
 function toggleLyricsEditor() {
-    const isEditing = !lyricsEditor.classList.contains('hidden');
-    if (isEditing) {
-        lyricsEditor.classList.add('hidden');
-        lyricsDisplay.classList.remove('hidden');
-    } else {
+    const isEditing = lyricsEditor.classList.toggle('hidden');
+    lyricsDisplay.classList.toggle('hidden');
+    if (!isEditing) {
         lyricsText.value = lyricsDisplay.textContent;
-        lyricsEditor.classList.remove('hidden');
-        lyricsDisplay.classList.add('hidden');
-        lyricsText.focus();
     }
 }
 
+function loadLyrics(songName) {
+    // Remove file extension from song name for lyrics file
+    const lyricsName = songName.replace(/\.[^/.]+$/, '');
+    fetch(`/Lyrics/${encodeURIComponent(lyricsName)}.txt`)
+        .then(response => response.text())
+        .then(data => {
+            if (data) {
+                lyricsDisplay.textContent = data;
+                lyricsText.value = data;
+            } else {
+                lyricsDisplay.textContent = 'No lyrics available';
+                lyricsText.value = '';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading lyrics:', error);
+            lyricsDisplay.textContent = 'No lyrics available';
+            lyricsText.value = '';
+        });
+}
+
 function saveLyrics() {
+    const songName = songs[currentSongIndex];
+    // Remove file extension from song name for lyrics file
+    const lyricsName = songName.replace(/\.[^/.]+$/, '');
     const lyrics = lyricsText.value;
-    const songName = songs[currentSongIndex].replace(/\.[^/.]+$/, ''); // Remove file extension
-    
-    fetch(`/lyrics/${encodeURIComponent(songName)}`, {
+
+    fetch(`/Lyrics/${encodeURIComponent(lyricsName)}.txt`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'text/plain',
         },
-        body: JSON.stringify({ lyrics })
+        body: lyrics
     })
-    .then(response => response.json())
-    .then(() => {
-        lyricsDisplay.textContent = lyrics;
-        toggleLyricsEditor();
+    .then(response => {
+        if (response.ok) {
+            lyricsDisplay.textContent = lyrics;
+            toggleLyricsEditor();
+        } else {
+            throw new Error('Failed to save lyrics');
+        }
     })
-    .catch(error => console.error('Error saving lyrics:', error));
+    .catch(error => {
+        console.error('Error saving lyrics:', error);
+        alert('Failed to save lyrics. Please try again.');
+    });
 }
 
 function cancelLyricsEdit() {
     toggleLyricsEditor();
 }
 
-function loadLyrics(songName) {
-    songName = songName.replace(/\.[^/.]+$/, ''); // Remove file extension
-    fetch(`/lyrics/${encodeURIComponent(songName)}`)
-        .then(response => response.json())
-        .then(data => {
-            lyricsDisplay.textContent = data.lyrics || 'No lyrics available';
-            lyricsText.value = data.lyrics || '';
-        })
-        .catch(error => console.error('Error loading lyrics:', error));
-}
+async function deleteSong(songName) {
+    if (!confirm(`Are you sure you want to delete ${songName}?`)) {
+        return;
+    }
 
-// Add audio session handling
-if ('audioSession' in navigator) {
-    navigator.audioSession.addEventListener('interruptionbegin', () => {
-        audio.pause();
-        updatePlayButton();
-    });
-    
-    navigator.audioSession.addEventListener('interruptionend', () => {
-        audio.play().catch(console.error);
-        updatePlayButton();
-    });
-}
+    try {
+        const response = await fetch(`/songs/${songName}`, {
+            method: 'DELETE'
+        });
 
-// Initial load of songs
-loadSongs();
+        if (response.ok) {
+            if (songs[currentSongIndex] === songName) {
+                audio.pause();
+                isPlaying = false;
+                updatePlayButton();
+            }
+            loadSongs();
+        } else {
+            console.error('Error deleting song');
+        }
+    } catch (error) {
+        console.error('Error deleting song:', error);
+    }
+}
