@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Music Player</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Music Player">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
     <link rel="icon" type="image/png" href="/icons/icon-192x192.png">
@@ -25,12 +22,10 @@
                         <button id="shuffleBtn" title="Shuffle"><i class="fas fa-random"></i></button>
                         <button id="repeatBtn" title="Repeat"><i class="fas fa-redo"></i></button>
                     </div>
-                    <div class="spotify-download">
-                        <form id="spotify-download-form">
-                            <input type="text" id="spotify-url" placeholder="Enter Spotify URL" required>
-                            <button type="submit"><i class="fab fa-spotify"></i></button>
-                        </form>
-                        <div id="download-status"></div>
+                    <div class="download-form">
+                        <input type="text" id="ytUrl" placeholder="Enter YouTube URL">
+                        <button id="ytDownloadBtn">Download</button>
+                        <div id="downloadStatus"></div>
                     </div>
                     <ul id="songList" class="sortable-list"></ul>
                 </div>
@@ -81,6 +76,7 @@
             </div>
         </div>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

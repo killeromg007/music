@@ -2,8 +2,8 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { exec } = require('child_process');
-const ytdl = require('ytdl-core');
+const { downloadMusic } = require('./utils/musicDownloader');
+const { downloadYouTube } = require('./utils/youtube');
 require('dotenv').config();
 
 const app = express();
@@ -48,8 +48,8 @@ app.post('/upload', upload.array('music'), (req, res) => {
     res.json({ message: 'Files uploaded successfully' });
 });
 
-// Spotify download endpoint
-app.post('/spotify/download', async (req, res) => {
+// Unified music download endpoint
+app.post('/download', async (req, res) => {
     try {
         const { url } = req.body;
         if (!url) {
@@ -61,18 +61,31 @@ app.post('/spotify/download', async (req, res) => {
             fs.mkdirSync(uploadDir, { recursive: true });
         }
 
-        // Use spotifydl-core to download
-        const command = `spotifydl "${url}" --output "${uploadDir}"`;
-        
-        exec(command, (error, stdout, stderr) => {
-            if (error) {
-                console.error('Spotify download error:', error);
-                return res.status(500).json({ success: false, error: error.message });
-            }
-            res.json({ success: true, message: 'Download complete' });
-        });
+        const result = await downloadMusic(url, uploadDir);
+        res.json({ success: true, message: result.message, filename: result.filename });
     } catch (error) {
-        console.error('Spotify download error:', error);
+        console.error('Download error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// YouTube download endpoint
+app.post('/youtube/download', async (req, res) => {
+    try {
+        const { url } = req.body;
+        if (!url) {
+            return res.status(400).json({ success: false, error: 'URL is required' });
+        }
+
+        const uploadDir = path.join(__dirname, 'public', 'uploads');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        await downloadYouTube(url, uploadDir);
+        res.json({ success: true, message: 'Download complete' });
+    } catch (error) {
+        console.error('YouTube download error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

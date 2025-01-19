@@ -27,9 +27,7 @@ const saveLyricsBtn = document.getElementById('saveLyricsBtn');
 const cancelLyricsBtn = document.getElementById('cancelLyricsBtn');
 const addMusicBtn = document.getElementById('addMusicBtn');
 const musicFiles = document.getElementById('musicFiles');
-const spotifyForm = document.getElementById('spotify-download-form');
-const spotifyUrlInput = document.getElementById('spotify-url');
-const downloadStatus = document.getElementById('download-status');
+const downloadStatus = document.getElementById('downloadStatus');
 
 // Event Listeners
 playBtn.addEventListener('click', togglePlay);
@@ -47,6 +45,8 @@ cancelLyricsBtn.addEventListener('click', cancelLyricsEdit);
 addMusicBtn.addEventListener('click', () => {
     musicFiles.click();
 });
+document.getElementById('ytDownloadBtn').addEventListener('click', downloadYouTube);
+
 musicFiles.addEventListener('change', async (e) => {
     const files = e.target.files;
     if (!files.length) return;
@@ -69,44 +69,6 @@ musicFiles.addEventListener('change', async (e) => {
         }
     } catch (error) {
         console.error('Upload error:', error);
-    }
-});
-spotifyForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const url = spotifyUrlInput.value.trim();
-    
-    if (!url) return;
-
-    downloadStatus.textContent = 'Downloading...';
-    downloadStatus.className = '';
-
-    try {
-        const response = await fetch('/spotify/download', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ url })
-        });
-
-        if (!response.ok) {
-            throw new Error('Download failed');
-        }
-
-        const result = await response.json();
-        
-        if (result.success) {
-            downloadStatus.textContent = 'Download complete!';
-            downloadStatus.className = 'success';
-            spotifyUrlInput.value = '';
-            loadSongs(); // Refresh the song list
-        } else {
-            throw new Error(result.error || 'Download failed');
-        }
-    } catch (error) {
-        console.error('Spotify download error:', error);
-        downloadStatus.textContent = 'Failed to download. Please try again.';
-        downloadStatus.className = 'error';
     }
 });
 
@@ -378,5 +340,72 @@ async function deleteSong(songName) {
         }
     } catch (error) {
         console.error('Error deleting song:', error);
+    }
+}
+
+async function downloadMusic() {
+    const downloadUrl = document.getElementById('downloadUrl').value;
+    const statusDiv = document.getElementById('downloadStatus');
+    
+    if (!downloadUrl) {
+        statusDiv.textContent = 'Please enter a URL';
+        return;
+    }
+
+    statusDiv.textContent = 'Downloading...';
+    
+    try {
+        const response = await fetch('/download', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ url: downloadUrl })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            statusDiv.textContent = data.message;
+            // Refresh the song list
+            loadSongs();
+            // Clear the input
+            document.getElementById('downloadUrl').value = '';
+        } else {
+            statusDiv.textContent = 'Error: ' + data.error;
+        }
+    } catch (error) {
+        statusDiv.textContent = 'Error: ' + error.message;
+    }
+}
+
+async function downloadYouTube() {
+    const url = document.getElementById('ytUrl').value;
+    if (!url) {
+        alert('Please enter a YouTube URL');
+        return;
+    }
+
+    const status = document.getElementById('downloadStatus');
+    status.textContent = 'Downloading...';
+
+    try {
+        const response = await fetch('/youtube/download', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            status.textContent = 'Download complete!';
+            loadSongs(); // Refresh song list
+        } else {
+            status.textContent = 'Download failed: ' + data.error;
+        }
+    } catch (error) {
+        status.textContent = 'Download failed: ' + error.message;
     }
 }
