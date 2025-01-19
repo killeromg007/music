@@ -2,7 +2,8 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const SpotifyDL = require('spotifydl-core').default;
+const { exec } = require('child_process');
+const ytdl = require('ytdl-core');
 require('dotenv').config();
 
 const app = express();
@@ -27,14 +28,6 @@ const upload = multer({ storage: storage });
 // Middleware
 app.use(express.json());
 app.use(express.static('public'));
-
-// Create Spotify client
-const credentials = {
-    clientId: process.env.SPOTIFY_CLIENT_ID,
-    clientSecret: process.env.SPOTIFY_CLIENT_SECRET
-};
-
-const spotify = new SpotifyDL(credentials);
 
 // Routes
 app.get('/songs', (req, res) => {
@@ -68,10 +61,16 @@ app.post('/spotify/download', async (req, res) => {
             fs.mkdirSync(uploadDir, { recursive: true });
         }
 
-        // Download the track
-        const track = await spotify.downloadTrack(url);
+        // Use spotifydl-core to download
+        const command = `spotifydl "${url}" --output "${uploadDir}"`;
         
-        res.json({ success: true, message: 'Download complete' });
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                console.error('Spotify download error:', error);
+                return res.status(500).json({ success: false, error: error.message });
+            }
+            res.json({ success: true, message: 'Download complete' });
+        });
     } catch (error) {
         console.error('Spotify download error:', error);
         res.status(500).json({ success: false, error: error.message });
