@@ -269,12 +269,17 @@ function toggleLyricsEditor() {
 function loadLyrics(songName) {
     // Remove file extension from song name for lyrics file
     const lyricsName = songName.replace(/\.[^/.]+$/, '');
-    fetch(`/Lyrics/${encodeURIComponent(lyricsName)}.txt`)
-        .then(response => response.text())
-        .then(data => {
-            if (data) {
-                lyricsDisplay.textContent = data;
-                lyricsText.value = data;
+    fetch(`/lyrics/${encodeURIComponent(lyricsName)}.txt`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load lyrics');
+            }
+            return response.text();
+        })
+        .then(text => {
+            if (text) {
+                lyricsDisplay.textContent = text;
+                lyricsText.value = text;
             } else {
                 lyricsDisplay.textContent = 'No lyrics available';
                 lyricsText.value = '';
@@ -293,7 +298,7 @@ function saveLyrics() {
     const lyricsName = songName.replace(/\.[^/.]+$/, '');
     const lyrics = lyricsText.value;
 
-    fetch(`/Lyrics/${encodeURIComponent(lyricsName)}.txt`, {
+    fetch(`/lyrics/${encodeURIComponent(lyricsName)}.txt`, {
         method: 'POST',
         headers: {
             'Content-Type': 'text/plain',

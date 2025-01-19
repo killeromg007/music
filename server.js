@@ -93,35 +93,41 @@ app.post('/youtube/download', async (req, res) => {
 // Lyrics endpoints
 app.get('/lyrics/:songName', (req, res) => {
     const songName = req.params.songName;
-    const lyricsPath = path.join(__dirname, 'public', 'Lyrics', songName + '.txt');
+    const lyricsPath = path.join(__dirname, 'public', 'lyrics', songName);
     
     fs.readFile(lyricsPath, 'utf8', (err, data) => {
         if (err) {
             if (err.code === 'ENOENT') {
-                return res.json({ lyrics: '' });
+                return res.send('');
             }
-            return res.status(500).json({ error: 'Failed to read lyrics' });
+            return res.status(500).send('Failed to read lyrics');
         }
-        res.json({ lyrics: data });
+        res.send(data);
     });
 });
 
 app.post('/lyrics/:songName', (req, res) => {
-    const songName = req.params.songName;
-    const lyrics = req.body.lyrics;
-    const lyricsDir = path.join(__dirname, 'public', 'Lyrics');
-    const lyricsPath = path.join(lyricsDir, songName + '.txt');
+    let lyrics = '';
+    req.on('data', chunk => {
+        lyrics += chunk;
+    });
     
-    if (!fs.existsSync(lyricsDir)) {
-        fs.mkdirSync(lyricsDir, { recursive: true });
-    }
-    
-    fs.writeFile(lyricsPath, lyrics, 'utf8', (err) => {
-        if (err) {
-            console.error('Error saving lyrics:', err);
-            return res.status(500).json({ error: 'Failed to save lyrics' });
+    req.on('end', () => {
+        const songName = req.params.songName;
+        const lyricsDir = path.join(__dirname, 'public', 'lyrics');
+        const lyricsPath = path.join(lyricsDir, songName);
+        
+        if (!fs.existsSync(lyricsDir)) {
+            fs.mkdirSync(lyricsDir, { recursive: true });
         }
-        res.json({ success: true });
+        
+        fs.writeFile(lyricsPath, lyrics, 'utf8', (err) => {
+            if (err) {
+                console.error('Error saving lyrics:', err);
+                return res.status(500).send('Failed to save lyrics');
+            }
+            res.sendStatus(200);
+        });
     });
 });
 
