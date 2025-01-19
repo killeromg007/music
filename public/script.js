@@ -1,6 +1,7 @@
 let currentSongIndex = 0;
 let songs = [];
 const audio = new Audio();
+audio.preload = 'auto';
 let isPlaying = false;
 let isRepeat = false;
 let isShuffle = false;
@@ -41,6 +42,47 @@ cancelLyricsBtn.addEventListener('click', cancelLyricsEdit);
 
 // Initialize volume
 audio.volume = volumeSlider.value / 100;
+
+// Enable background audio
+if ('mediaSession' in navigator) {
+    navigator.mediaSession.setActionHandler('play', function() {
+        audio.play();
+        updatePlayButton();
+    });
+    navigator.mediaSession.setActionHandler('pause', function() {
+        audio.pause();
+        updatePlayButton();
+    });
+    navigator.mediaSession.setActionHandler('previoustrack', function() {
+        playPrevious();
+    });
+    navigator.mediaSession.setActionHandler('nexttrack', function() {
+        playNext();
+    });
+}
+
+// Update media session metadata when song changes
+function updateMediaMetadata(songTitle) {
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: songTitle,
+            artist: 'Music Player',
+            artwork: [
+                { src: '/icon-96x96.png', sizes: '96x96', type: 'image/png' },
+                { src: '/icon-128x128.png', sizes: '128x128', type: 'image/png' },
+                { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+                { src: '/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+            ]
+        });
+    }
+}
+
+// Add event listener for visibility change
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden && audio.paused) {
+        updatePlayButton();
+    }
+});
 
 // Functions
 function loadSongs() {
@@ -164,6 +206,7 @@ function playSong(index) {
         currentSongElement.textContent = songs[index];
         loadLyrics(songs[index]);
         displaySongs();
+        updateMediaMetadata(songs[index].replace(/\.[^/.]+$/, ''));
     }
 }
 
@@ -273,6 +316,19 @@ function loadLyrics(songName) {
             lyricsText.value = data.lyrics || '';
         })
         .catch(error => console.error('Error loading lyrics:', error));
+}
+
+// Add audio session handling
+if ('audioSession' in navigator) {
+    navigator.audioSession.addEventListener('interruptionbegin', () => {
+        audio.pause();
+        updatePlayButton();
+    });
+    
+    navigator.audioSession.addEventListener('interruptionend', () => {
+        audio.play().catch(console.error);
+        updatePlayButton();
+    });
 }
 
 // Initial load of songs

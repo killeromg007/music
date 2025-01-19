@@ -4,6 +4,10 @@
     box-sizing: border-box;
 }
 
+html {
+    font-size: 16px;
+}
+
 body {
     font-family: Arial, sans-serif;
     background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
@@ -11,15 +15,20 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    margin: 0;
+    padding: 0;
 }
 
 .container {
-    width: 95%;
-    max-width: 1200px;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
     background: rgba(255, 255, 255, 0.95);
-    padding: 30px;
-    border-radius: 20px;
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+    margin: 0;
 }
 
 .music-player {
@@ -28,19 +37,22 @@ body {
 
 .player-layout {
     display: flex;
-    gap: 30px;
+    gap: clamp(15px, 2.5vw, 30px);
     text-align: left;
+    padding: 20px;
 }
 
 .playlist {
-    width: 300px;
+    width: clamp(300px, 30vw, 400px);
     flex-shrink: 0;
-    padding: 20px;
+    padding: clamp(10px, 1.5vw, 20px);
     background: rgba(42, 82, 152, 0.05);
     border-radius: 15px;
-    height: 600px;
+    height: calc(100vh - 40px);
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    transform: translate3d(46px, -33px, 0px) scale(0.97);
 }
 
 .playlist-controls {
@@ -50,8 +62,8 @@ body {
 }
 
 .playlist-controls button {
-    width: 40px;
-    height: 40px;
+    width: clamp(32px, 3vw, 40px);
+    height: clamp(32px, 3vw, 40px);
     border-radius: 50%;
     background: #2a5298;
     color: white;
@@ -61,6 +73,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: clamp(0.8rem, 1vw, 1rem);
 }
 
 .playlist-controls button.active {
@@ -73,188 +86,34 @@ body {
 
 .player-main {
     flex-grow: 1;
-    padding: 20px;
+    padding: clamp(10px, 1.5vw, 20px);
     display: flex;
     flex-direction: column;
-}
-
-.player-container {
-    margin: 30px 0;
-}
-
-.lyrics-container {
-    flex-grow: 1;
-    background: rgba(42, 82, 152, 0.05);
-    border-radius: 15px;
-    padding: 20px;
-    margin-top: 20px;
-    display: flex;
-    flex-direction: column;
-    min-height: 300px;
-}
-
-.lyrics-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.lyrics-header h2 {
-    margin: 0;
-    color: #2a5298;
-}
-
-.lyrics-header button {
-    background: none;
-    border: none;
-    color: #2a5298;
-    cursor: pointer;
-    padding: 5px;
-    font-size: 1.2em;
-    transition: transform 0.2s;
-}
-
-.lyrics-header button:hover {
-    transform: scale(1.1);
-}
-
-.lyrics-display {
-    flex-grow: 1;
-    white-space: pre-wrap;
-    overflow-y: auto;
-    padding: 10px;
-    font-size: 1.1em;
-    line-height: 1.6;
-    color: #333;
-}
-
-.lyrics-editor {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.lyrics-editor textarea {
-    flex-grow: 1;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 1.1em;
-    line-height: 1.6;
-    resize: none;
-    font-family: inherit;
-}
-
-.lyrics-editor textarea:focus {
-    outline: none;
-    border-color: #2a5298;
-}
-
-.editor-buttons {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-}
-
-.editor-buttons button {
-    padding: 8px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.editor-buttons button:first-child {
-    background: #2a5298;
-    color: white;
-}
-
-.editor-buttons button:last-child {
-    background: #ddd;
-    color: #333;
-}
-
-.editor-buttons button:hover {
-    opacity: 0.9;
-}
-
-.hidden {
-    display: none;
-}
-
-/* Lyrics scrollbar styling */
-.lyrics-display::-webkit-scrollbar {
-    width: 8px;
-}
-
-.lyrics-display::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.lyrics-display::-webkit-scrollbar-thumb {
-    background: #2a5298;
-    border-radius: 4px;
-}
-
-.lyrics-display::-webkit-scrollbar-thumb:hover {
-    background: #1e3c72;
-}
-
-/* Scrollbar styling */
-#songList::-webkit-scrollbar {
-    width: 8px;
-}
-
-#songList::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-#songList::-webkit-scrollbar-thumb {
-    background: #2a5298;
-    border-radius: 4px;
-}
-
-#songList::-webkit-scrollbar-thumb:hover {
-    background: #1e3c72;
+    min-width: 0;
+    max-width: 800px;
+    margin: 0 auto;
+    transform: translate3d(6px, -16px, 0px);
 }
 
 h1 {
     color: #2a5298;
-    margin-bottom: 30px;
-    font-size: 2.5em;
+    margin-bottom: clamp(10px, 2vw, 20px);
+    font-size: clamp(1.3rem, 2vw, 2rem);
     text-align: center;
 }
 
-.upload-section {
-    margin: 30px 0;
-}
-
-.upload-section input[type="file"] {
-    display: none;
-}
-
-button {
-    background: #2a5298;
-    color: white;
-    border: none;
-    padding: 15px 30px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-button:hover {
-    background: #1e3c72;
+.player-container {
+    margin: clamp(10px, 2vw, 20px) 0;
+    transform: translate3d(10px, -22px, 0px) scale(0.94);
 }
 
 .song-info {
-    margin: 25px 0;
+    margin: clamp(15px, 2vw, 25px) 0;
     color: #333;
-    font-size: 1.2em;
+    font-size: clamp(1rem, 1.2vw, 1.2rem);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .progress-bar {
@@ -278,7 +137,7 @@ button:hover {
     display: flex;
     justify-content: space-between;
     color: #666;
-    font-size: 1em;
+    font-size: clamp(0.8rem, 1vw, 1rem);
     margin: 10px 0;
 }
 
@@ -286,19 +145,19 @@ button:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 25px;
-    margin: 30px 0;
+    gap: clamp(15px, 2.5vw, 25px);
+    margin: clamp(20px, 2.5vw, 30px) 0;
 }
 
 .controls button {
-    width: 60px;
-    height: 60px;
+    width: clamp(45px, 5vw, 60px);
+    height: clamp(45px, 5vw, 60px);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
-    font-size: 1.2em;
+    font-size: clamp(1rem, 1.2vw, 1.2rem);
     background: #2a5298;
     color: white;
     border: none;
@@ -315,18 +174,120 @@ button:hover {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-left: 20px;
+    margin-left: clamp(10px, 1.5vw, 20px);
 }
 
 #volumeSlider {
-    width: 120px;
+    width: clamp(80px, 8vw, 120px);
     height: 8px;
 }
 
-.playlist h2 {
+.lyrics-container {
+    flex-grow: 1;
+    background: rgba(42, 82, 152, 0.05);
+    border-radius: 15px;
+    padding: clamp(10px, 1.5vw, 20px);
+    margin-top: clamp(10px, 1.5vw, 20px);
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 450px);
+    min-height: 200px;
+    transform: translate3d(-4px, -62px, 0px);
+    overflow: hidden;
+}
+
+.lyrics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    transform: translate3d(9px, 6px, 0px);
+}
+
+.lyrics-header h2 {
+    margin: 0;
     color: #2a5298;
-    margin-bottom: 20px;
-    font-size: 1.8em;
+    font-size: clamp(1.2rem, 1.5vw, 1.5rem);
+}
+
+.lyrics-header button {
+    background: none;
+    border: none;
+    color: #2a5298;
+    cursor: pointer;
+    padding: 5px;
+    font-size: clamp(1rem, 1.2vw, 1.2rem);
+    transition: transform 0.2s;
+}
+
+.lyrics-header button:hover {
+    transform: scale(1.1);
+}
+
+.lyrics-display {
+    flex-grow: 1;
+    white-space: pre-wrap;
+    overflow-y: auto;
+    padding: 10px;
+    font-size: clamp(0.9rem, 1.1vw, 1.1rem);
+    line-height: 1.6;
+    color: #333;
+    height: 100%;
+}
+
+.lyrics-editor {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+    overflow: hidden;
+}
+
+.lyrics-editor textarea {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: clamp(0.9rem, 1.1vw, 1.1rem);
+    line-height: 1.6;
+    resize: none;
+    font-family: inherit;
+    height: calc(100% - 50px);
+    overflow-y: auto;
+}
+
+.editor-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.editor-buttons button {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+    font-size: clamp(0.8rem, 1vw, 1rem);
+}
+
+.editor-buttons button:first-child {
+    background: #2a5298;
+    color: white;
+}
+
+.editor-buttons button:last-child {
+    background: #ddd;
+    color: #333;
+}
+
+.editor-buttons button:hover {
+    opacity: 0.9;
+}
+
+.hidden {
+    display: none;
 }
 
 #songList {
@@ -334,16 +295,16 @@ button:hover {
     flex-grow: 1;
     overflow-y: auto;
     margin: 0;
-    padding: 10px 5px;
+    padding: clamp(5px, 1vw, 10px);
 }
 
 #songList li {
-    padding: 15px;
+    padding: clamp(10px, 1.5vw, 15px);
     cursor: grab;
     transition: all 0.3s;
     border-radius: 8px;
     margin-bottom: 5px;
-    font-size: 1.1em;
+    font-size: clamp(0.9rem, 1.1vw, 1.1rem);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -377,6 +338,29 @@ button:hover {
     color: white;
 }
 
+/* Scrollbar styling */
+#songList::-webkit-scrollbar,
+.lyrics-display::-webkit-scrollbar {
+    width: 8px;
+}
+
+#songList::-webkit-scrollbar-track,
+.lyrics-display::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#songList::-webkit-scrollbar-thumb,
+.lyrics-display::-webkit-scrollbar-thumb {
+    background: #2a5298;
+    border-radius: 4px;
+}
+
+#songList::-webkit-scrollbar-thumb:hover,
+.lyrics-display::-webkit-scrollbar-thumb:hover {
+    background: #1e3c72;
+}
+
 /* Make it responsive */
 @media (max-width: 768px) {
     .player-layout {
@@ -385,10 +369,48 @@ button:hover {
     
     .playlist {
         width: 100%;
-        height: 300px;
+        height: 50vh;
+    }
+
+    .player-main {
+        max-width: 100%;
     }
 
     .lyrics-container {
-        min-height: 200px;
+        min-height: clamp(150px, 30vh, 200px);
+    }
+    
+    .controls {
+        flex-wrap: wrap;
+    }
+    
+    .volume-control {
+        width: 100%;
+        margin: 15px 0 0 0;
+        justify-content: center;
+    }
+    
+    #volumeSlider {
+        width: clamp(120px, 30vw, 200px);
+    }
+}
+
+/* For very small screens */
+@media (max-width: 480px) {
+    html {
+        font-size: 14px;
+    }
+    
+    body {
+        padding: 0;
+    }
+    
+    .container {
+        padding: 0;
+    }
+    
+    .controls button {
+        width: 40px;
+        height: 40px;
     }
 }
